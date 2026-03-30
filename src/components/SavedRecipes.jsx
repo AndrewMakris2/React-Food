@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import {
   Trash2, ChefHat, MapPin, Dumbbell, Flame, Calendar,
   BookOpen, ChevronDown, ChevronUp, Wheat, Droplets,
@@ -6,6 +6,7 @@ import {
 } from 'lucide-react'
 import HomeCookedCard from './HomeCookedCard'
 import FastFoodCard from './FastFoodCard'
+import { getRecipes, removeRecipe } from '../lib/recipes'
 
 function StatCard({ icon: Icon, label, value, accent }) {
   const styles = {
@@ -34,37 +35,17 @@ function parseMacro(val) {
 }
 
 export default function SavedRecipes({ onDelete }) {
-  const [recipes,  setRecipes]  = useState([])
-  const [loading,  setLoading]  = useState(true)
+  const [recipes,  setRecipes]  = useState(() => getRecipes())
   const [expanded, setExpanded] = useState(null)
   const [deleting, setDeleting] = useState(null)
 
-  useEffect(() => {
-    fetch('/api/recipes')
-      .then(r => r.json())
-      .then(data => setRecipes(Array.isArray(data) ? data : []))
-      .catch(() => setRecipes([]))
-      .finally(() => setLoading(false))
-  }, [])
-
-  async function deleteRecipe(id) {
+  function deleteRecipe(id) {
     setDeleting(id)
-    try {
-      await fetch(`/api/recipes/${id}`, { method: 'DELETE' })
-      setRecipes(prev => prev.filter(r => r.id !== id))
-      if (expanded === id) setExpanded(null)
-      onDelete?.()
-    } finally {
-      setDeleting(null)
-    }
-  }
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-24">
-        <div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
-      </div>
-    )
+    removeRecipe(id)
+    setRecipes(prev => prev.filter(r => r.id !== id))
+    if (expanded === id) setExpanded(null)
+    onDelete?.()
+    setDeleting(null)
   }
 
   if (recipes.length === 0) {
@@ -171,8 +152,7 @@ export default function SavedRecipes({ onDelete }) {
               <div className="flex items-center gap-0.5 sm:gap-1 flex-shrink-0">
                 <button
                   onClick={e => { e.stopPropagation(); deleteRecipe(recipe.id) }}
-                  disabled={isDeleting}
-                  className="p-1.5 sm:p-2 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 disabled:opacity-40 transition-colors min-w-[32px] min-h-[32px] flex items-center justify-center"
+                  className="p-1.5 sm:p-2 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors min-w-[32px] min-h-[32px] flex items-center justify-center"
                   title="Delete recipe"
                 >
                   <Trash2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />

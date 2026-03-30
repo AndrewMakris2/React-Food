@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Zap, ChefHat, MapPin, Loader2, Shuffle, Dumbbell, Flame, Wheat, Droplets } from 'lucide-react'
 import HomeCookedCard from './HomeCookedCard'
 import FastFoodCard from './FastFoodCard'
+import { addRecipe } from '../lib/recipes'
 
 const MEAL_TYPES = [
   { value: 'any',         label: 'Surprise Me', Icon: Shuffle  },
@@ -214,36 +215,18 @@ export default function MealGenerator({ generatedMeal, setGeneratedMeal, onSaved
     }
   }
 
-  async function saveRecipe() {
+  function saveRecipe() {
     if (!generatedMeal || saved) return
-    try {
-      const res = await fetch('/api/recipes', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(generatedMeal),
-      })
-      if (!res.ok) throw new Error('Save failed')
-      setSaved(true)
-      onSaved?.()
-    } catch (e) {
-      console.error('[save error]', e)
-    }
+    addRecipe(generatedMeal)
+    setSaved(true)
+    onSaved?.()
   }
 
-  async function saveIndividualMeal(meal, index) {
+  function saveIndividualMeal(meal, index) {
     if (savedSet.has(index)) return
-    try {
-      const res = await fetch('/api/recipes', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...meal, type: 'home_cooked' }),
-      })
-      if (!res.ok) throw new Error('Save failed')
-      setSavedSet(prev => new Set([...prev, index]))
-      onSaved?.()
-    } catch (e) {
-      console.error('[save error]', e)
-    }
+    addRecipe({ ...meal, type: 'home_cooked' })
+    setSavedSet(prev => new Set([...prev, index]))
+    onSaved?.()
   }
 
   return (
