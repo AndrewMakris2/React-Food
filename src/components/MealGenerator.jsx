@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { Zap, ChefHat, MapPin, Loader2, Shuffle, Dumbbell, Flame, Wheat, Droplets } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { Zap, ChefHat, MapPin, Loader2, Shuffle, Dumbbell, Flame, Wheat, Droplets, Navigation, CheckCircle2 } from 'lucide-react'
 import HomeCookedCard from './HomeCookedCard'
 import FastFoodCard from './FastFoodCard'
 import { addRecipe } from '../lib/recipes'
@@ -196,10 +196,36 @@ export default function MealGenerator({ generatedMeal, setGeneratedMeal, onSaved
   const [servings,      setServings]      = useState('2')
   const [resultCount,   setResultCount]   = useState(5)
   const [restrictions,  setRestrictions]  = useState('')
+  const [location,      setLocation]      = useState(null)
+  const [locationLoading, setLocationLoading] = useState(false)
   const [loading,       setLoading]       = useState(false)
   const [error,         setError]         = useState(null)
   const [saved,         setSaved]         = useState(false)
   const [savedSet,      setSavedSet]      = useState(new Set())
+
+  async function detectLocation() {
+    if (!navigator.geolocation) return
+    setLocationLoading(true)
+    navigator.geolocation.getCurrentPosition(
+      async ({ coords }) => {
+        try {
+          const res = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?lat=${coords.latitude}&lon=${coords.longitude}&format=json`,
+            { headers: { 'Accept-Language': 'en', 'User-Agent': 'ProteinFuelApp/1.0' } }
+          )
+          const data = await res.json()
+          const city  = data.address?.city || data.address?.town || data.address?.village || data.address?.county || ''
+          const state = data.address?.state || ''
+          setLocation([city, state].filter(Boolean).join(', '))
+        } catch {
+          setLocation(null)
+        } finally {
+          setLocationLoading(false)
+        }
+      },
+      () => setLocationLoading(false)
+    )
+  }
 
   async function generate() {
     setLoading(true)
@@ -225,6 +251,7 @@ export default function MealGenerator({ generatedMeal, setGeneratedMeal, onSaved
           servings,
           resultCount,
           restrictions,
+          location,
         }),
       })
       const data = await res.json()
@@ -253,17 +280,49 @@ export default function MealGenerator({ generatedMeal, setGeneratedMeal, onSaved
 
   return (
     <div className="space-y-4 sm:space-y-6">
-      {/* Hero */}
-      <div className="text-center pt-1 sm:pt-2 pb-2 sm:pb-4">
-        <h1 className="text-xl sm:text-2xl lg:text-3xl font-extrabold tracking-tight leading-tight">
-          <span className="bg-gradient-to-r from-indigo-600 to-violet-600 bg-clip-text text-transparent">
-            Protein-Packed
-          </span>{' '}
-          <span className="text-slate-900 dark:text-white">Meal Generator</span>
+      {/* Hero banner */}
+      <div className="rounded-2xl bg-gradient-to-br from-indigo-500 via-indigo-600 to-violet-600 p-5 sm:p-7 text-white shadow-xl shadow-indigo-500/20">
+        <div className="inline-flex items-center gap-1.5 bg-white/20 rounded-full px-3 py-1 text-[11px] sm:text-xs font-semibold mb-3">
+          <Zap className="w-3 h-3" /> Powered by Groq AI
+        </div>
+        <h1 className="text-xl sm:text-3xl font-extrabold tracking-tight leading-tight mb-2">
+          Your AI-Powered High-Protein Meal Planner
         </h1>
-        <p className="text-slate-500 dark:text-slate-400 mt-1.5 sm:mt-2 text-xs sm:text-sm">
-          Set your macro targets — Groq AI builds the perfect meal.
+        <p className="text-indigo-100 text-xs sm:text-sm max-w-xl leading-relaxed mb-4">
+          ProteinFuel generates personalized meals based on your macro targets, food preferences, and location — whether you're cooking at home or grabbing food on the go.
         </p>
+        <div className="flex flex-wrap items-center gap-2">
+          {['Home Cooked Recipes', 'Fast Food Options', 'Macro Tracking', 'Step-by-Step Instructions'].map(f => (
+            <span key={f} className="bg-white/20 rounded-full px-2.5 py-1 text-[11px] sm:text-xs font-medium">
+              {f}
+            </span>
+          ))}
+        </div>
+        {/* Location row */}
+        <div className="mt-4 pt-4 border-t border-white/20 flex items-center gap-3 flex-wrap">
+          <button
+            onClick={detectLocation}
+            disabled={locationLoading}
+            className="flex items-center gap-1.5 bg-white/20 hover:bg-white/30 active:bg-white/10 rounded-xl px-3 py-1.5 text-xs font-semibold transition-colors disabled:opacity-60"
+          >
+            {locationLoading
+              ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              : <Navigation className="w-3.5 h-3.5" />
+            }
+            {location ? 'Update Location' : 'Use My Location'}
+          </button>
+          {location && (
+            <span className="flex items-center gap-1.5 text-xs text-indigo-100">
+              <CheckCircle2 className="w-3.5 h-3.5 text-green-300 flex-shrink-0" />
+              {location}
+            </span>
+          )}
+          {!location && (
+            <span className="text-indigo-200/70 text-[11px]">
+              Optional — helps tailor fast food chain recommendations
+            </span>
+          )}
+        </div>
       </div>
 
       {/* Form card */}
