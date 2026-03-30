@@ -20,6 +20,20 @@ const PROTEIN_SOURCES = [
   'Turkey', 'Eggs', 'Tofu', 'Plant-based',
 ]
 
+const MEAL_TIMES = [
+  'Any', 'Breakfast', 'Lunch', 'Dinner', 'Snack', 'Pre-Workout', 'Post-Workout',
+]
+
+const COOK_TIMES = [
+  'Any', 'Under 15 min', '15–30 min', '30–60 min', '1+ hour',
+]
+
+const SPICE_LEVELS = [
+  'Any', 'No Spice', 'Mild', 'Medium', 'Spicy', 'Extra Hot',
+]
+
+const SERVINGS = ['1', '2', '3', '4', '5', '6']
+
 function SectionDivider({ label }) {
   return (
     <div className="flex items-center gap-2 mb-3 sm:mb-4">
@@ -176,6 +190,10 @@ export default function MealGenerator({ generatedMeal, setGeneratedMeal, onSaved
   const [mealType,      setMealType]      = useState('any')
   const [cuisine,       setCuisine]       = useState('Any')
   const [proteinSource, setProteinSource] = useState('Any')
+  const [mealTime,      setMealTime]      = useState('Any')
+  const [cookTime,      setCookTime]      = useState('Any')
+  const [spiceLevel,    setSpiceLevel]    = useState('Any')
+  const [servings,      setServings]      = useState('2')
   const [resultCount,   setResultCount]   = useState(5)
   const [restrictions,  setRestrictions]  = useState('')
   const [loading,       setLoading]       = useState(false)
@@ -201,6 +219,10 @@ export default function MealGenerator({ generatedMeal, setGeneratedMeal, onSaved
           mealType,
           cuisine:       cuisine !== 'Any'       ? cuisine       : null,
           proteinSource: proteinSource !== 'Any' ? proteinSource : null,
+          mealTime:      mealTime !== 'Any'      ? mealTime      : null,
+          cookTime:      cookTime !== 'Any'      ? cookTime      : null,
+          spiceLevel:    spiceLevel !== 'Any'    ? spiceLevel    : null,
+          servings,
           resultCount,
           restrictions,
         }),
@@ -321,6 +343,45 @@ export default function MealGenerator({ generatedMeal, setGeneratedMeal, onSaved
               value={proteinSource}
               onChange={setProteinSource}
             />
+            <ChipGroup
+              label="Meal Time"
+              options={MEAL_TIMES}
+              value={mealTime}
+              onChange={setMealTime}
+            />
+            <ChipGroup
+              label="Spice Level"
+              options={SPICE_LEVELS}
+              value={spiceLevel}
+              onChange={setSpiceLevel}
+            />
+            {mealType !== 'fast_food' && (
+              <ChipGroup
+                label="Cook Time"
+                options={COOK_TIMES}
+                value={cookTime}
+                onChange={setCookTime}
+              />
+            )}
+            {/* Servings — number row */}
+            <div>
+              <p className="text-xs sm:text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Servings</p>
+              <div className="flex flex-wrap gap-1.5 sm:gap-2">
+                {SERVINGS.map(s => (
+                  <button
+                    key={s}
+                    onClick={() => setServings(s)}
+                    className={`w-10 h-8 rounded-lg text-xs font-semibold border transition-all min-h-[32px] ${
+                      servings === s
+                        ? 'bg-indigo-500 border-indigo-500 text-white shadow-sm shadow-indigo-500/25'
+                        : 'bg-white dark:bg-slate-800/60 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:border-indigo-300 dark:hover:border-indigo-600 hover:text-indigo-600 dark:hover:text-indigo-400'
+                    }`}
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
 

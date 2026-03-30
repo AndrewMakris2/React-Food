@@ -35,6 +35,10 @@ export const handler = async (event) => {
     mealType      = 'any',
     cuisine       = null,
     proteinSource = null,
+    mealTime      = null,
+    cookTime      = null,
+    spiceLevel    = null,
+    servings      = '2',
     resultCount   = 5,
     restrictions  = '',
   } = JSON.parse(event.body || '{}');
@@ -51,6 +55,10 @@ export const handler = async (event) => {
     maxFat        ? `- Fat: maximum ${maxFat}g`                       : null,
     cuisine       ? `- Cuisine style: ${cuisine}`                     : null,
     proteinSource ? `- Main protein source MUST be: ${proteinSource}` : null,
+    mealTime      ? `- Meal occasion: ${mealTime}`                    : null,
+    cookTime      ? `- Max cooking time: ${cookTime}`                 : null,
+    spiceLevel    ? `- Spice level: ${spiceLevel}`                    : null,
+    `- Servings: ${servings} person(s)`,
     restrictions  ? `- Dietary restrictions: ${restrictions}`         : null,
   ].filter(Boolean).join('\n');
 

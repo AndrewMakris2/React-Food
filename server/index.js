@@ -52,6 +52,10 @@ app.post('/api/generate', async (req, res) => {
     mealType      = 'any',
     cuisine       = null,
     proteinSource = null,
+    mealTime      = null,
+    cookTime      = null,
+    spiceLevel    = null,
+    servings      = '2',
     resultCount   = 5,
     restrictions  = '',
   } = req.body;
@@ -68,6 +72,10 @@ app.post('/api/generate', async (req, res) => {
     maxFat        ? `- Fat: maximum ${maxFat}g`                        : null,
     cuisine       ? `- Cuisine style: ${cuisine}`                      : null,
     proteinSource ? `- Main protein source MUST be: ${proteinSource}`  : null,
+    mealTime      ? `- Meal occasion: ${mealTime}`                     : null,
+    cookTime      ? `- Max cooking time: ${cookTime}`                  : null,
+    spiceLevel    ? `- Spice level: ${spiceLevel}`                     : null,
+    `- Servings: ${servings} person(s)`,
     restrictions  ? `- Dietary restrictions: ${restrictions}`          : null,
   ].filter(Boolean).join('\n');
 
