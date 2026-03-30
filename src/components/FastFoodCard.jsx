@@ -1,87 +1,99 @@
-import { MapPin, Flame, Dumbbell, Bookmark, BookmarkCheck } from 'lucide-react'
+import { MapPin, Flame, Dumbbell, Bookmark, BookmarkCheck, Wheat, Droplets } from 'lucide-react'
+
+function MacroChip({ icon: Icon, value, label }) {
+  if (!value) return null
+  return (
+    <div className="flex items-center gap-1 sm:gap-1.5 rounded-lg px-2 sm:px-3 py-1 sm:py-1.5 text-xs sm:text-sm font-semibold bg-white/20">
+      <Icon className="w-3 h-3 sm:w-3.5 sm:h-3.5 flex-shrink-0" />
+      <span>{value}</span>
+      {label && <span className="opacity-75 text-[10px] sm:text-xs font-normal">{label}</span>}
+    </div>
+  )
+}
+
+function MiniMacro({ icon: Icon, value, label }) {
+  if (!value) return null
+  return (
+    <span className="flex items-center gap-1 text-[10px] sm:text-xs text-slate-500 dark:text-slate-400">
+      <Icon className="w-2.5 h-2.5 sm:w-3 sm:h-3 flex-shrink-0" />
+      {value} <span className="text-slate-400 dark:text-slate-500">{label}</span>
+    </span>
+  )
+}
 
 export default function FastFoodCard({ meal, onSave, saved }) {
   return (
-    <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-700/50 overflow-hidden shadow-sm animate-slide-up">
+    <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-sm rounded-xl sm:rounded-2xl border border-slate-200/80 dark:border-slate-700/50 overflow-hidden shadow-sm animate-slide-up">
+
       {/* Header band */}
-      <div className="bg-gradient-to-r from-orange-500 to-red-500 p-6 text-white">
-        <div className="flex items-start justify-between gap-4">
-          <div className="min-w-0">
-            <div className="flex items-center gap-2 mb-2 opacity-90">
-              <MapPin className="w-4 h-4 flex-shrink-0" />
-              <span className="text-sm font-medium">Fast Food Options</span>
+      <div className="bg-gradient-to-br from-orange-500 via-orange-500 to-red-500 p-4 sm:p-6 text-white">
+        <div className="flex items-start justify-between gap-3 sm:gap-4">
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-1.5 sm:gap-2 mb-1.5 sm:mb-2 opacity-90">
+              <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-md sm:rounded-lg bg-white/20 flex items-center justify-center flex-shrink-0">
+                <MapPin className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+              </div>
+              <span className="text-xs sm:text-sm font-semibold tracking-wide">Fast Food Options</span>
             </div>
-            <h2 className="text-2xl font-bold leading-tight">{meal.name}</h2>
-            <p className="mt-1.5 text-sm opacity-85 leading-relaxed">{meal.description}</p>
+            <h2 className="text-lg sm:text-xl lg:text-2xl font-extrabold leading-tight">{meal.name}</h2>
+            <p className="mt-1 sm:mt-1.5 text-xs sm:text-sm opacity-85 leading-relaxed">{meal.description}</p>
           </div>
           {onSave && (
             <button
               onClick={onSave}
               disabled={saved}
-              className="flex-shrink-0 w-10 h-10 rounded-xl bg-white/20 hover:bg-white/30 disabled:opacity-60 transition flex items-center justify-center"
+              className="flex-shrink-0 w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-white/20 hover:bg-white/30 disabled:opacity-60 transition-colors flex items-center justify-center"
               title={saved ? 'Saved!' : 'Save options'}
             >
-              {saved
-                ? <BookmarkCheck className="w-5 h-5" />
-                : <Bookmark className="w-5 h-5" />}
+              {saved ? <BookmarkCheck className="w-4 h-4 sm:w-5 sm:h-5" /> : <Bookmark className="w-4 h-4 sm:w-5 sm:h-5" />}
             </button>
           )}
         </div>
 
-        {/* Stats */}
-        <div className="mt-4 flex flex-wrap gap-2">
-          <div className="flex items-center gap-1.5 bg-white/20 rounded-lg px-3 py-1.5 text-sm font-semibold">
-            <Dumbbell className="w-4 h-4" />
-            {meal.protein} protein
-          </div>
-          <div className="flex items-center gap-1.5 bg-white/20 rounded-lg px-3 py-1.5 text-sm font-semibold">
-            <Flame className="w-4 h-4" />
-            {meal.calories} cal
-          </div>
+        {/* Macro chips */}
+        <div className="mt-3 sm:mt-4 flex flex-wrap gap-1.5 sm:gap-2">
+          <MacroChip icon={Dumbbell} value={meal.protein} label="protein" />
+          <MacroChip icon={Flame}    value={meal.calories} label="cal" />
+          <MacroChip icon={Wheat}    value={meal.carbs}    label="carbs" />
+          <MacroChip icon={Droplets} value={meal.fat}      label="fat" />
         </div>
       </div>
 
       {/* Restaurant options */}
       {meal.restaurants?.length > 0 && (
-        <div className="p-6">
-          <h3 className="text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-4">
-            Top Options Near You
+        <div className="p-4 sm:p-6">
+          <h3 className="text-[10px] sm:text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-3 sm:mb-4">
+            Top Options
           </h3>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
             {meal.restaurants.map((r, i) => (
               <div
                 key={i}
-                className="rounded-xl border border-slate-200 dark:border-slate-700/50 p-4 hover:border-orange-300 dark:hover:border-orange-500/40 transition-colors"
+                className="rounded-xl border border-slate-200 dark:border-slate-700/50 p-3 sm:p-4 hover:border-orange-300 dark:hover:border-orange-500/40 hover:shadow-md transition-all"
               >
                 {/* Rank + name */}
-                <div className="flex items-center gap-2 mb-3">
-                  <div className="w-7 h-7 rounded-lg bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center flex-shrink-0">
-                    <span className="text-orange-600 dark:text-orange-400 font-bold text-xs">{i + 1}</span>
+                <div className="flex items-center gap-2 sm:gap-2.5 mb-2 sm:mb-3">
+                  <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-md sm:rounded-lg bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center flex-shrink-0">
+                    <span className="text-orange-600 dark:text-orange-400 font-bold text-[10px] sm:text-xs">{i + 1}</span>
                   </div>
-                  <span className="font-semibold text-slate-900 dark:text-white text-sm truncate">
-                    {r.name}
-                  </span>
+                  <span className="font-bold text-slate-900 dark:text-white text-xs sm:text-sm truncate">{r.name}</span>
                 </div>
 
                 {/* Item */}
-                <p className="text-slate-800 dark:text-slate-200 text-sm font-medium mb-2 leading-snug">
-                  {r.item}
-                </p>
+                <p className="text-slate-800 dark:text-slate-200 text-xs sm:text-sm font-medium mb-2 sm:mb-3 leading-snug">{r.item}</p>
 
                 {/* Macros */}
-                <div className="flex gap-3 mb-3">
-                  <span className="flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400">
-                    <Dumbbell className="w-3 h-3" /> {r.protein}
-                  </span>
-                  <span className="flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400">
-                    <Flame className="w-3 h-3" /> {r.calories} cal
-                  </span>
+                <div className="flex flex-wrap gap-x-2 sm:gap-x-3 gap-y-1 mb-2 sm:mb-3">
+                  <MiniMacro icon={Dumbbell} value={r.protein}  label="protein" />
+                  <MiniMacro icon={Flame}    value={r.calories} label="cal" />
+                  <MiniMacro icon={Wheat}    value={r.carbs}    label="carbs" />
+                  <MiniMacro icon={Droplets} value={r.fat}      label="fat" />
                 </div>
 
-                {/* Tip */}
+                {/* Order tip */}
                 {r.modifications && (
-                  <div className="bg-orange-50 dark:bg-orange-900/20 rounded-lg p-2.5">
-                    <p className="text-xs text-orange-700 dark:text-orange-300 leading-snug">
+                  <div className="bg-orange-50 dark:bg-orange-900/20 rounded-lg p-2 sm:p-2.5 border border-orange-100 dark:border-orange-800/30">
+                    <p className="text-[10px] sm:text-xs text-orange-700 dark:text-orange-300 leading-snug">
                       <span className="font-semibold">Order tip: </span>
                       {r.modifications}
                     </p>

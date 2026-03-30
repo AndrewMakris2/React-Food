@@ -10,13 +10,20 @@ function AppContent() {
   const [savedCount, setSavedCount] = useState(0)
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 transition-colors duration-300">
+    <div className="min-h-screen bg-grid-light transition-colors duration-300">
+      {/* Ambient glow — hidden on small screens for perf */}
+      <div aria-hidden className="pointer-events-none fixed inset-0 overflow-hidden hidden sm:block">
+        <div className="absolute -top-40 -left-40 w-96 h-96 rounded-full bg-indigo-400/10 dark:bg-indigo-600/8 blur-3xl" />
+        <div className="absolute -top-20 right-0 w-80 h-80 rounded-full bg-violet-400/10 dark:bg-violet-600/8 blur-3xl" />
+      </div>
+
       <Header
         activeTab={activeTab}
         setActiveTab={setActiveTab}
         savedCount={savedCount}
       />
-      <main className="max-w-5xl mx-auto px-4 py-8">
+
+      <main className="relative max-w-5xl mx-auto px-3 sm:px-4 lg:px-6 py-5 sm:py-8">
         {activeTab === 'generator' ? (
           <MealGenerator
             generatedMeal={generatedMeal}

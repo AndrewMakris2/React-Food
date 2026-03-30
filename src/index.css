@@ -6,24 +6,51 @@
   html {
     font-family: 'Inter', system-ui, sans-serif;
     -webkit-font-smoothing: antialiased;
+    /* Prevent iOS font inflation in landscape */
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
   }
 
+  body {
+    /* Prevent horizontal scroll bleed */
+    overflow-x: hidden;
+  }
+
+  /* Remove tap highlight on mobile */
+  button, a, [role="button"] {
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+
+  /* Better iOS input defaults */
+  input, textarea, select {
+    -webkit-appearance: none;
+    appearance: none;
+  }
+
+  /* Scrollbar */
   * {
     scrollbar-width: thin;
     scrollbar-color: #6366f1 transparent;
   }
+  *::-webkit-scrollbar { width: 5px; height: 5px; }
+  *::-webkit-scrollbar-track { background: transparent; }
+  *::-webkit-scrollbar-thumb { background: #6366f1; border-radius: 99px; }
+}
 
-  *::-webkit-scrollbar {
-    width: 5px;
-    height: 5px;
+@layer utilities {
+  .bg-grid-light {
+    background-color: #fafafe;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32' width='32' height='32' fill='none' stroke='rgb(99 102 241 / 0.07)'%3e%3cpath d='M0 .5H31.5V32'/%3e%3c/svg%3e");
+  }
+  .dark .bg-grid-light {
+    background-color: #020617;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32' width='32' height='32' fill='none' stroke='rgb(99 102 241 / 0.06)'%3e%3cpath d='M0 .5H31.5V32'/%3e%3c/svg%3e");
   }
 
-  *::-webkit-scrollbar-track {
-    background: transparent;
-  }
-
-  *::-webkit-scrollbar-thumb {
-    background: #6366f1;
-    border-radius: 99px;
+  /* Ensure tap targets are at least 44px */
+  .tap-target {
+    min-height: 44px;
+    min-width: 44px;
   }
 }

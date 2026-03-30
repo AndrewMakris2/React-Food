@@ -44,61 +44,87 @@ function extractJSON(str) {
 
 // Generate a meal
 app.post('/api/generate', async (req, res) => {
-  const { proteinGoal = 50, mealType = 'any', restrictions = '' } = req.body;
+  const {
+    proteinGoal   = 50,
+    maxCalories   = null,
+    maxCarbs      = null,
+    maxFat        = null,
+    mealType      = 'any',
+    cuisine       = null,
+    proteinSource = null,
+    resultCount   = 5,
+    restrictions  = '',
+  } = req.body;
 
   const typeInstruction =
     mealType === 'home_cooked' ? 'This MUST be a home-cooked meal (type = "home_cooked").' :
     mealType === 'fast_food'   ? 'This MUST be a fast food meal (type = "fast_food").' :
-    'Choose the best type for this goal — either "home_cooked" or "fast_food".';
+    'Choose the most fitting type — either "home_cooked" or "fast_food".';
 
-  const prompt = `You are a nutrition expert specializing in high-protein meal planning.
-Generate a protein-packed meal recommendation with these requirements:
-- Protein target: ~${proteinGoal}g
+  const macroLines = [
+    `- Protein: at least ${proteinGoal}g`,
+    maxCalories   ? `- Calories: maximum ${maxCalories} kcal`          : null,
+    maxCarbs      ? `- Carbs: maximum ${maxCarbs}g`                    : null,
+    maxFat        ? `- Fat: maximum ${maxFat}g`                        : null,
+    cuisine       ? `- Cuisine style: ${cuisine}`                      : null,
+    proteinSource ? `- Main protein source MUST be: ${proteinSource}`  : null,
+    restrictions  ? `- Dietary restrictions: ${restrictions}`          : null,
+  ].filter(Boolean).join('\n');
+
+  const prompt = `You are a precision nutrition expert specializing in high-protein meal planning.
+Generate a meal that strictly meets these requirements:
+${macroLines}
 - ${typeInstruction}
-${restrictions ? `- Dietary restrictions: ${restrictions}` : ''}
 
-Respond with ONLY a valid raw JSON object — no markdown, no extra text, no code fences.
+Respond with ONLY a valid raw JSON object — no markdown, no code fences, no extra text.
 
-Schema for HOME COOKED:
+Schema for HOME COOKED — return exactly ${resultCount} distinct meal(s):
 {
   "type": "home_cooked",
-  "name": "<meal name>",
-  "protein": "<Xg>",
-  "calories": "<X>",
-  "description": "<1-2 sentence description>",
-  "ingredients": ["<amount> <ingredient>", ...],
-  "steps": ["<full instruction for step 1>", "<full instruction for step 2>", ...],
-  "restaurants": []
+  "meals": [
+    {
+      "name": "<meal name>",
+      "protein": "<Xg>",
+      "calories": "<X>",
+      "carbs": "<Xg>",
+      "fat": "<Xg>",
+      "description": "<1-2 sentence description>",
+      "ingredients": ["<amount> <ingredient>", ...],
+      "steps": ["<detailed step 1>", "<detailed step 2>", ...]
+    }
+  ]
 }
 
-Schema for FAST FOOD:
+Schema for FAST FOOD — return exactly ${resultCount} restaurant option(s):
 {
   "type": "fast_food",
-  "name": "<descriptive theme name, e.g. 'High-Protein Burger Run'>",
+  "name": "<descriptive theme, e.g. 'High-Protein Burger Run'>",
   "protein": "<Xg range>",
   "calories": "<X range>",
+  "carbs": "<Xg range>",
+  "fat": "<Xg range>",
   "description": "<1-2 sentence description>",
-  "ingredients": [],
-  "steps": [],
   "restaurants": [
     {
       "name": "<restaurant chain>",
       "item": "<specific menu item>",
       "protein": "<Xg>",
       "calories": "<X>",
+      "carbs": "<Xg>",
+      "fat": "<Xg>",
       "modifications": "<how to order it for max protein>"
     }
   ]
 }
 
-Provide 3 restaurant options for fast food. Make steps detailed and clear for home cooked meals.`;
+Each home cooked meal must have detailed steps. Each meal/restaurant must be distinct.`;
 
   try {
     const completion = await groq.chat.completions.create({
       messages: [{ role: 'user', content: prompt }],
       model: GROQ_MODEL,
       temperature: 0.7,
-      max_tokens: 2048,
+      max_tokens: 4096,
     });
 
     const raw = completion.choices[0].message.content;
@@ -144,6 +170,6 @@ app.delete('/api/recipes/:id', (req, res) => {
 app.listen(3001, () => {
   console.log('✅  ProteinFuel server running at http://localhost:3001');
   if (GROQ_API_KEY === 'YOUR_GROQ_API_KEY_HERE') {
-    console.warn('⚠️   Add your Groq API key to server/config.js to enable AI generation');
+    console.warn('⚠️   Add your Groq API key to server/config.js');
   }
 });
