@@ -119,20 +119,37 @@ Schema for FAST FOOD — return exactly ${resultCount} restaurant option(s):
 
 Each home cooked meal must have detailed steps. Each meal/restaurant must be distinct.`;
 
+  // Home cooked meals need ~600 tokens each (ingredients + steps), fast food ~250 each
+  const tokensPerResult = mealType === 'home_cooked' ? 650 : 280;
+  const max_tokens = Math.min(8192, 512 + tokensPerResult * resultCount);
+
   try {
     const completion = await groq.chat.completions.create({
       messages: [{ role: 'user', content: prompt }],
       model: GROQ_MODEL,
       temperature: 0.7,
-      max_tokens: 4096,
+      max_tokens,
     });
 
-    const raw = completion.choices[0].message.content;
+    const choice = completion.choices[0];
+
+    if (choice.finish_reason === 'length') {
+      return res.status(500).json({
+        error: `Response was cut off — try reducing the number of results to ${Math.max(1, Math.floor(resultCount * 0.6))}.`,
+      });
+    }
+
+    const raw = choice.message.content;
     const meal = extractJSON(raw);
     res.json(meal);
   } catch (err) {
     console.error('[generate error]', err.message);
-    res.status(500).json({ error: err.message || 'Failed to generate meal' });
+    const isJSON = err.message.includes('JSON') || err.message.includes('json');
+    res.status(500).json({
+      error: isJSON
+        ? 'AI response was incomplete — try fewer results or a simpler request.'
+        : (err.message || 'Failed to generate meal'),
+    });
   }
 });
 
