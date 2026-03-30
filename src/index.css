@@ -33,7 +33,7 @@
     scrollbar-width: thin;
     scrollbar-color: #6366f1 transparent;
   }
-  *::-webkit-scrollbar { width: 5px; height: 5px; }
+  *::-webkit-scrollbar { width: 4px; height: 4px; }
   *::-webkit-scrollbar-track { background: transparent; }
   *::-webkit-scrollbar-thumb { background: #6366f1; border-radius: 99px; }
 }
