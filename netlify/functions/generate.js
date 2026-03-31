@@ -2,16 +2,13 @@ import Groq from 'groq-sdk';
 
 const GROQ_MODEL = 'llama-3.3-70b-versatile';
 
-function extractJSON(str) {
-  const trimmed = str.trim();
-  try {
-    return JSON.parse(trimmed);
-  } catch {
-    const match = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/) ||
-                  trimmed.match(/(\{[\s\S]*\})/);
-    if (match) return JSON.parse(match[1] || match[0]);
-    throw new Error('Could not parse JSON from AI response');
-  }
+// Clamp a number between min and max
+function clamp(val, min, max) { return Math.min(max, Math.max(min, val)) }
+
+// Sanitize a string — trim and cap length
+function sanitize(val, maxLen = 120) {
+  if (typeof val !== 'string') return ''
+  return val.trim().slice(0, maxLen)
 }
 
 export const handler = async (event) => {
@@ -27,6 +24,9 @@ export const handler = async (event) => {
     };
   }
 
+  let body = {};
+  try { body = JSON.parse(event.body || '{}'); } catch { /* use defaults */ }
+
   const {
     proteinGoal   = 50,
     maxCalories   = null,
@@ -39,119 +39,135 @@ export const handler = async (event) => {
     cookTime      = null,
     spiceLevel    = null,
     servings      = '2',
-    resultCount   = 5,
     restrictions  = '',
     location      = null,
-  } = JSON.parse(event.body || '{}');
+  } = body;
 
-  const macroLines = [
-    `- Protein: at least ${proteinGoal}g`,
-    maxCalories   ? `- Calories: maximum ${maxCalories} kcal`         : null,
-    maxCarbs      ? `- Carbs: maximum ${maxCarbs}g`                   : null,
-    maxFat        ? `- Fat: maximum ${maxFat}g`                       : null,
-    cuisine       ? `- Cuisine style: ${cuisine}`                     : null,
-    proteinSource ? `- Main protein source MUST be: ${proteinSource}` : null,
-    mealTime      ? `- Meal occasion: ${mealTime}`                    : null,
-    cookTime      ? `- Max cooking time: ${cookTime}`                 : null,
-    spiceLevel    ? `- Spice level: ${spiceLevel}`                    : null,
-    `- Servings: ${servings} person(s)`,
-    restrictions  ? `- Dietary restrictions: ${restrictions}`         : null,
-    location      ? `- User location: ${location} — prioritize chains and options available in this area` : null,
-  ].filter(Boolean).join('\n');
+  // Validated / sanitized inputs
+  const protein     = clamp(parseInt(proteinGoal) || 50, 5, 500)
+  const resultCount = clamp(parseInt(body.resultCount) || 3, 1, 10)
+  const type        = ['home_cooked', 'fast_food', 'any'].includes(mealType) ? mealType : 'any'
 
-  // Build type-specific schema to avoid model confusion
+  const requirementLines = [
+    `- Minimum protein: ${protein}g per serving`,
+    maxCalories   ? `- Maximum calories: ${maxCalories} kcal per serving`         : null,
+    maxCarbs      ? `- Maximum carbs: ${maxCarbs}g per serving`                   : null,
+    maxFat        ? `- Maximum fat: ${maxFat}g per serving`                       : null,
+    cuisine       ? `- Cuisine: ${sanitize(cuisine)}`                             : null,
+    proteinSource ? `- Primary protein source: ${sanitize(proteinSource)}`        : null,
+    mealTime      ? `- Meal occasion: ${sanitize(mealTime)}`                      : null,
+    cookTime      ? `- Cook time limit: ${sanitize(cookTime)}`                    : null,
+    spiceLevel    ? `- Spice level: ${sanitize(spiceLevel)}`                      : null,
+    `- Servings: ${sanitize(String(servings))}`,
+    restrictions  ? `- Dietary restrictions: ${sanitize(restrictions, 200)}`      : null,
+    location      ? `- User is near ${sanitize(location)} — recommend chains/restaurants available in this area` : null,
+  ].filter(Boolean).join('\n')
+
+  // Type-specific schema — only show the relevant one to prevent model confusion
   const homeSchema = `{
   "type": "home_cooked",
   "meals": [
     {
-      "name": "<meal name>",
-      "protein": "<Xg>",
-      "calories": "<X>",
-      "carbs": "<Xg>",
-      "fat": "<Xg>",
-      "description": "<1-2 sentence description>",
-      "ingredients": ["<amount> <ingredient>"],
-      "steps": ["<detailed step 1>", "<detailed step 2>"]
+      "name": "string",
+      "protein": "Xg",
+      "calories": "X",
+      "carbs": "Xg",
+      "fat": "Xg",
+      "description": "1-2 sentence overview",
+      "ingredients": ["quantity unit ingredient"],
+      "steps": ["Step with specific amounts and timing"]
     }
   ]
-}`;
+}
+The meals array must contain exactly ${resultCount} item(s).`
 
   const fastSchema = `{
   "type": "fast_food",
-  "name": "<descriptive theme>",
-  "protein": "<Xg range>",
-  "calories": "<X range>",
-  "carbs": "<Xg range>",
-  "fat": "<Xg range>",
-  "description": "<1-2 sentence description>",
+  "name": "descriptive collection title",
+  "protein": "Xg-Xg range",
+  "calories": "X-X range",
+  "carbs": "Xg-Xg range",
+  "fat": "Xg-Xg range",
+  "description": "1-2 sentence overview",
   "restaurants": [
     {
-      "name": "<restaurant chain>",
-      "item": "<specific menu item>",
-      "protein": "<Xg>",
-      "calories": "<X>",
-      "carbs": "<Xg>",
-      "fat": "<Xg>",
-      "modifications": "<how to order for max protein>"
+      "name": "real chain name",
+      "item": "exact menu item name",
+      "protein": "~Xg",
+      "calories": "~X",
+      "carbs": "~Xg",
+      "fat": "~Xg",
+      "modifications": "how to order for maximum protein"
     }
   ]
-}`;
+}
+The restaurants array must contain exactly ${resultCount} item(s).`
 
-  let schemaInstruction;
-  if (mealType === 'home_cooked') {
-    schemaInstruction = `You MUST return a home_cooked JSON object. The "meals" array MUST contain EXACTLY ${resultCount} distinct meal objects — no fewer, no more.
-
-${homeSchema}`;
-  } else if (mealType === 'fast_food') {
-    schemaInstruction = `You MUST return a fast_food JSON object. The "restaurants" array MUST contain EXACTLY ${resultCount} distinct restaurant objects — no fewer, no more.
-
-${fastSchema}`;
+  let typeDirective, schema
+  if (type === 'home_cooked') {
+    typeDirective = `Generate exactly ${resultCount} HOME-COOKED meal(s). The "meals" array MUST have exactly ${resultCount} element(s).`
+    schema = homeSchema
+  } else if (type === 'fast_food') {
+    typeDirective = `Generate exactly ${resultCount} FAST FOOD option(s). The "restaurants" array MUST have exactly ${resultCount} element(s). Only use real menu items that actually exist at these chains right now.`
+    schema = fastSchema
   } else {
-    schemaInstruction = `Choose the most fitting type. Whichever you pick, the array (meals or restaurants) MUST contain EXACTLY ${resultCount} distinct items.
-
-HOME COOKED schema:
-${homeSchema}
-
-FAST FOOD schema:
-${fastSchema}`;
+    typeDirective = `Choose the most fitting type (home_cooked or fast_food). The meals or restaurants array MUST have exactly ${resultCount} element(s).`
+    schema = `HOME COOKED schema:\n${homeSchema}\n\nFAST FOOD schema:\n${fastSchema}`
   }
 
-  const prompt = `You are a precision nutrition expert specializing in high-protein meal planning.
-CRITICAL: You MUST generate EXACTLY ${resultCount} result(s). Count them before responding.
+  const systemPrompt = `You are a precision sports nutritionist and registered dietitian specializing in high-protein meal planning.
+
+MACRO ACCURACY RULES — you must follow these exactly:
+- Calories are calculated as: (protein_g × 4) + (carbs_g × 4) + (fat_g × 9)
+- A meal with 50g protein contributes at least 200 kcal from protein alone — total calories cannot be lower
+- Base all macro numbers on the actual ingredient amounts you list — verify before writing
+- Never round protein up dramatically while keeping calories impossibly low
+- For fast food: use real published nutrition data for these actual menu items
+
+OUTPUT RULES:
+- Return ONLY a valid JSON object — no markdown, no code fences, no explanation
+- Every meal/restaurant in the array must be distinct`
+
+  const userPrompt = `${typeDirective}
 
 Requirements:
-${macroLines}
+${requirementLines}
 
-Respond with ONLY a valid raw JSON object — no markdown, no code fences, no extra text.
+Return this exact JSON structure:
+${schema}
 
-${schemaInstruction}
+Count the items in your array before finishing — it must be exactly ${resultCount}.`
 
-Every item in the array must be distinct. For home cooked meals, steps must be detailed.`;
-
-  const tokensPerResult = mealType === 'home_cooked' ? 650 : 280;
-  const max_tokens = Math.min(8192, 512 + tokensPerResult * resultCount);
+  // Token budget: home cooked needs more space for ingredients + steps
+  const tokensPerResult = type === 'home_cooked' ? 750 : 300
+  const max_tokens = Math.min(8192, 600 + tokensPerResult * resultCount)
 
   try {
     const groq = new Groq({ apiKey });
     const completion = await groq.chat.completions.create({
-      messages: [{ role: 'user', content: prompt }],
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user',   content: userPrompt   },
+      ],
       model: GROQ_MODEL,
-      temperature: 0.7,
+      temperature: 0.5,
       max_tokens,
+      response_format: { type: 'json_object' },
     });
 
     const choice = completion.choices[0];
 
     if (choice.finish_reason === 'length') {
+      const suggested = Math.max(1, Math.floor(resultCount * 0.6))
       return {
         statusCode: 500,
         body: JSON.stringify({
-          error: `Response was cut off — try reducing results to ${Math.max(1, Math.floor(resultCount * 0.6))}.`,
+          error: `Response was cut off — try reducing results to ${suggested}.`,
         }),
       };
     }
 
-    const meal = extractJSON(choice.message.content);
+    const meal = JSON.parse(choice.message.content);
     return {
       statusCode: 200,
       headers: { 'Content-Type': 'application/json' },
@@ -159,13 +175,10 @@ Every item in the array must be distinct. For home cooked meals, steps must be d
     };
   } catch (err) {
     console.error('[generate error]', err.message);
-    const isJSON = err.message.includes('JSON') || err.message.includes('json');
     return {
       statusCode: 500,
       body: JSON.stringify({
-        error: isJSON
-          ? 'AI response was incomplete — try fewer results.'
-          : (err.message || 'Failed to generate meal'),
+        error: err.message || 'Failed to generate meal. Please try again.',
       }),
     };
   }

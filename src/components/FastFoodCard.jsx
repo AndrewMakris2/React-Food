@@ -1,4 +1,4 @@
-import { MapPin, Flame, Dumbbell, Bookmark, BookmarkCheck, Wheat, Droplets } from 'lucide-react'
+import { MapPin, Flame, Dumbbell, Bookmark, BookmarkCheck, Wheat, Droplets, AlertTriangle, ExternalLink } from 'lucide-react'
 
 function MacroChip({ icon: Icon, value, label }) {
   if (!value) return null
@@ -19,6 +19,22 @@ function MiniMacro({ icon: Icon, value, label }) {
       {value} <span className="text-slate-400 dark:text-slate-500">{label}</span>
     </span>
   )
+}
+
+// Protein efficiency as a percentage of calories from protein
+function proteinPct(protein, calories) {
+  const p = parseFloat(String(protein).replace(/[^0-9.]/g, ''))
+  const c = parseFloat(String(calories).replace(/[^0-9.]/g, ''))
+  if (!p || !c) return null
+  return Math.round((p * 4 / c) * 100)
+}
+
+// Returns true if macros look physically impossible
+function macrosAreSuspect(protein, calories) {
+  const p = parseFloat(String(protein).replace(/[^0-9.]/g, ''))
+  const c = parseFloat(String(calories).replace(/[^0-9.]/g, ''))
+  if (!p || !c) return false
+  return c < p * 4 * 0.8
 }
 
 export default function FastFoodCard({ meal, onSave, saved }) {
@@ -52,10 +68,21 @@ export default function FastFoodCard({ meal, onSave, saved }) {
 
         {/* Macro chips */}
         <div className="mt-3 sm:mt-4 flex flex-wrap gap-1.5 sm:gap-2">
-          <MacroChip icon={Dumbbell} value={meal.protein} label="protein" />
+          <MacroChip icon={Dumbbell} value={meal.protein}  label="protein" />
           <MacroChip icon={Flame}    value={meal.calories} label="cal" />
           <MacroChip icon={Wheat}    value={meal.carbs}    label="carbs" />
           <MacroChip icon={Droplets} value={meal.fat}      label="fat" />
+        </div>
+      </div>
+
+      {/* Accuracy disclaimer */}
+      <div className="mx-4 sm:mx-6 mt-4 flex items-start gap-2 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700/40 rounded-xl p-3">
+        <AlertTriangle className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
+        <div>
+          <p className="text-xs font-semibold text-amber-700 dark:text-amber-400">Nutrition estimates only</p>
+          <p className="text-[11px] text-amber-600 dark:text-amber-500 mt-0.5 leading-relaxed">
+            AI-generated macros for fast food are approximate. Always verify on the restaurant's app or website before ordering.
+          </p>
         </div>
       </div>
 
@@ -66,42 +93,65 @@ export default function FastFoodCard({ meal, onSave, saved }) {
             Top Options
           </h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
-            {meal.restaurants.map((r, i) => (
-              <div
-                key={i}
-                className="rounded-xl border border-slate-200 dark:border-slate-700/50 p-3 sm:p-4 hover:border-orange-300 dark:hover:border-orange-500/40 hover:shadow-md transition-all"
-              >
-                {/* Rank + name */}
-                <div className="flex items-center gap-2 sm:gap-2.5 mb-2 sm:mb-3">
-                  <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-md sm:rounded-lg bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center flex-shrink-0">
-                    <span className="text-orange-600 dark:text-orange-400 font-bold text-[10px] sm:text-xs">{i + 1}</span>
+            {meal.restaurants.map((r, i) => {
+              const pct     = proteinPct(r.protein, r.calories)
+              const suspect = macrosAreSuspect(r.protein, r.calories)
+              return (
+                <div
+                  key={i}
+                  className="rounded-xl border border-slate-200 dark:border-slate-700/50 p-3 sm:p-4 hover:border-orange-300 dark:hover:border-orange-500/40 hover:shadow-md transition-all"
+                >
+                  {/* Rank + name + efficiency */}
+                  <div className="flex items-center gap-2 sm:gap-2.5 mb-2 sm:mb-3">
+                    <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-md sm:rounded-lg bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center flex-shrink-0">
+                      <span className="text-orange-600 dark:text-orange-400 font-bold text-[10px] sm:text-xs">{i + 1}</span>
+                    </div>
+                    <span className="font-bold text-slate-900 dark:text-white text-xs sm:text-sm truncate flex-1">{r.name}</span>
+                    {pct !== null && !suspect && (
+                      <span className="text-[9px] sm:text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/30 rounded-md px-1.5 py-0.5 flex-shrink-0">
+                        {pct}% protein
+                      </span>
+                    )}
                   </div>
-                  <span className="font-bold text-slate-900 dark:text-white text-xs sm:text-sm truncate">{r.name}</span>
-                </div>
 
-                {/* Item */}
-                <p className="text-slate-800 dark:text-slate-200 text-xs sm:text-sm font-medium mb-2 sm:mb-3 leading-snug">{r.item}</p>
+                  {/* Item */}
+                  <p className="text-slate-800 dark:text-slate-200 text-xs sm:text-sm font-medium mb-2 sm:mb-3 leading-snug">{r.item}</p>
 
-                {/* Macros */}
-                <div className="flex flex-wrap gap-x-2 sm:gap-x-3 gap-y-1 mb-2 sm:mb-3">
-                  <MiniMacro icon={Dumbbell} value={r.protein}  label="protein" />
-                  <MiniMacro icon={Flame}    value={r.calories} label="cal" />
-                  <MiniMacro icon={Wheat}    value={r.carbs}    label="carbs" />
-                  <MiniMacro icon={Droplets} value={r.fat}      label="fat" />
-                </div>
-
-                {/* Order tip */}
-                {r.modifications && (
-                  <div className="bg-orange-50 dark:bg-orange-900/20 rounded-lg p-2 sm:p-2.5 border border-orange-100 dark:border-orange-800/30">
-                    <p className="text-[10px] sm:text-xs text-orange-700 dark:text-orange-300 leading-snug">
-                      <span className="font-semibold">Order tip: </span>
-                      {r.modifications}
-                    </p>
+                  {/* Macros */}
+                  <div className="flex flex-wrap gap-x-2 sm:gap-x-3 gap-y-1 mb-2 sm:mb-3">
+                    <MiniMacro icon={Dumbbell} value={r.protein}  label="protein" />
+                    <MiniMacro icon={Flame}    value={r.calories} label="cal" />
+                    <MiniMacro icon={Wheat}    value={r.carbs}    label="carbs" />
+                    <MiniMacro icon={Droplets} value={r.fat}      label="fat" />
                   </div>
-                )}
-              </div>
-            ))}
+
+                  {/* Suspect macro warning */}
+                  {suspect && (
+                    <div className="flex items-center gap-1 text-[10px] text-amber-600 dark:text-amber-400 mb-2">
+                      <AlertTriangle className="w-3 h-3 flex-shrink-0" />
+                      Macros look off — double-check before ordering
+                    </div>
+                  )}
+
+                  {/* Order tip */}
+                  {r.modifications && (
+                    <div className="bg-orange-50 dark:bg-orange-900/20 rounded-lg p-2 sm:p-2.5 border border-orange-100 dark:border-orange-800/30">
+                      <p className="text-[10px] sm:text-xs text-orange-700 dark:text-orange-300 leading-snug">
+                        <span className="font-semibold">Order tip: </span>
+                        {r.modifications}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )
+            })}
           </div>
+
+          {/* Verify link hint */}
+          <p className="mt-4 flex items-center gap-1.5 text-[11px] text-slate-400 dark:text-slate-500">
+            <ExternalLink className="w-3 h-3 flex-shrink-0" />
+            Tip: Search "[restaurant name] nutrition calculator" to get exact macros for your order.
+          </p>
         </div>
       )}
     </div>

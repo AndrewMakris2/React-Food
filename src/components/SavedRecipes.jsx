@@ -2,11 +2,18 @@ import { useState } from 'react'
 import {
   Trash2, ChefHat, MapPin, Dumbbell, Flame, Calendar,
   BookOpen, ChevronDown, ChevronUp, Wheat, Droplets,
-  UtensilsCrossed,
+  UtensilsCrossed, ArrowUpDown,
 } from 'lucide-react'
 import HomeCookedCard from './HomeCookedCard'
 import FastFoodCard from './FastFoodCard'
-import { getRecipes, removeRecipe } from '../lib/recipes'
+import { getRecipes, removeRecipe, clearAllRecipes } from '../lib/recipes'
+
+const SORT_OPTIONS = [
+  { value: 'newest',   label: 'Newest first' },
+  { value: 'oldest',   label: 'Oldest first' },
+  { value: 'protein',  label: 'Highest protein' },
+  { value: 'calories', label: 'Highest calories' },
+]
 
 function StatCard({ icon: Icon, label, value, accent }) {
   const styles = {
@@ -34,10 +41,13 @@ function parseMacro(val) {
   return isNaN(n) ? null : n
 }
 
-export default function SavedRecipes({ onDelete }) {
-  const [recipes,  setRecipes]  = useState(() => getRecipes())
-  const [expanded, setExpanded] = useState(null)
-  const [deleting, setDeleting] = useState(null)
+export default function SavedRecipes({ onDelete, onClearAll }) {
+  const [recipes,    setRecipes]    = useState(() => getRecipes())
+  const [expanded,   setExpanded]   = useState(null)
+  const [deleting,   setDeleting]   = useState(null)
+  const [sortBy,     setSortBy]     = useState('newest')
+  const [sortOpen,   setSortOpen]   = useState(false)
+  const [confirmClear, setConfirmClear] = useState(false)
 
   function deleteRecipe(id) {
     setDeleting(id)
@@ -46,6 +56,15 @@ export default function SavedRecipes({ onDelete }) {
     if (expanded === id) setExpanded(null)
     onDelete?.()
     setDeleting(null)
+  }
+
+  function clearAll() {
+    const count = recipes.length
+    clearAllRecipes()
+    setRecipes([])
+    setExpanded(null)
+    setConfirmClear(false)
+    onClearAll?.(count)
   }
 
   if (recipes.length === 0) {
@@ -62,34 +81,95 @@ export default function SavedRecipes({ onDelete }) {
     )
   }
 
-  const proteins  = recipes.map(r => parseMacro(r.protein)).filter(Boolean)
-  const calories  = recipes.map(r => parseMacro(r.calories)).filter(Boolean)
-  const homeCount = recipes.filter(r => r.type === 'home_cooked').length
+  // Compute stats
+  const proteins    = recipes.map(r => parseMacro(r.protein)).filter(Boolean)
+  const cals        = recipes.map(r => parseMacro(r.calories)).filter(Boolean)
+  const homeCount   = recipes.filter(r => r.type === 'home_cooked').length
   const avgProtein  = proteins.length ? Math.round(proteins.reduce((a, b) => a + b, 0) / proteins.length) : 0
-  const avgCalories = calories.length ? Math.round(calories.reduce((a, b) => a + b, 0) / calories.length) : 0
+  const avgCalories = cals.length     ? Math.round(cals.reduce((a, b) => a + b, 0) / cals.length) : 0
+
+  // Sort
+  const sorted = [...recipes].sort((a, b) => {
+    if (sortBy === 'newest')   return new Date(b.savedAt) - new Date(a.savedAt)
+    if (sortBy === 'oldest')   return new Date(a.savedAt) - new Date(b.savedAt)
+    if (sortBy === 'protein')  return (parseMacro(b.protein)  || 0) - (parseMacro(a.protein)  || 0)
+    if (sortBy === 'calories') return (parseMacro(b.calories) || 0) - (parseMacro(a.calories) || 0)
+    return 0
+  })
+
+  const currentSortLabel = SORT_OPTIONS.find(o => o.value === sortBy)?.label || 'Sort'
 
   return (
     <div className="space-y-4 sm:space-y-5">
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-3">
-        <StatCard icon={UtensilsCrossed} label="Total Saved"   value={recipes.length}       accent="indigo"  />
-        <StatCard icon={Dumbbell}        label="Avg Protein"   value={`${avgProtein}g`}     accent="violet"  />
-        <StatCard icon={Flame}           label="Avg Calories"  value={avgCalories || '—'}   accent="orange"  />
-        <StatCard icon={ChefHat}         label="Home Cooked"   value={homeCount}            accent="emerald" />
+        <StatCard icon={UtensilsCrossed} label="Total Saved"  value={recipes.length}     accent="indigo"  />
+        <StatCard icon={Dumbbell}        label="Avg Protein"  value={`${avgProtein}g`}   accent="violet"  />
+        <StatCard icon={Flame}           label="Avg Calories" value={avgCalories || '—'} accent="orange"  />
+        <StatCard icon={ChefHat}         label="Home Cooked"  value={homeCount}          accent="emerald" />
       </div>
 
       {/* Header row */}
-      <div className="flex items-center justify-between">
-        <h2 className="text-lg sm:text-xl font-extrabold text-slate-900 dark:text-white">Saved Recipes</h2>
-        <span className="text-xs sm:text-sm text-slate-500 dark:text-slate-400">
-          {recipes.length} {recipes.length === 1 ? 'recipe' : 'recipes'}
-        </span>
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <h2 className="text-lg sm:text-xl font-extrabold text-slate-900 dark:text-white">
+          Saved Recipes
+          <span className="ml-2 text-sm font-normal text-slate-400 dark:text-slate-500">
+            {recipes.length} {recipes.length === 1 ? 'recipe' : 'recipes'}
+          </span>
+        </h2>
+
+        <div className="flex items-center gap-2">
+          {/* Sort dropdown */}
+          <div className="relative">
+            <button
+              onClick={() => setSortOpen(v => !v)}
+              className="flex items-center gap-1.5 text-xs font-semibold text-slate-600 dark:text-slate-400 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 hover:border-indigo-300 dark:hover:border-indigo-600 transition-colors"
+            >
+              <ArrowUpDown className="w-3.5 h-3.5" />
+              {currentSortLabel}
+              <ChevronDown className={`w-3.5 h-3.5 transition-transform ${sortOpen ? 'rotate-180' : ''}`} />
+            </button>
+            {sortOpen && (
+              <div className="absolute right-0 top-full mt-1.5 z-20 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-lg overflow-hidden min-w-[160px]">
+                {SORT_OPTIONS.map(opt => (
+                  <button
+                    key={opt.value}
+                    onClick={() => { setSortBy(opt.value); setSortOpen(false) }}
+                    className={`w-full text-left px-3 py-2.5 text-xs font-medium transition-colors ${
+                      sortBy === opt.value
+                        ? 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400'
+                        : 'text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50'
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Clear all */}
+          {!confirmClear ? (
+            <button
+              onClick={() => setConfirmClear(true)}
+              className="text-xs font-semibold text-slate-400 dark:text-slate-500 hover:text-red-500 dark:hover:text-red-400 transition-colors px-2 py-2"
+            >
+              Clear all
+            </button>
+          ) : (
+            <div className="flex items-center gap-1.5 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700/40 rounded-xl px-2.5 py-1.5">
+              <span className="text-[11px] text-red-600 dark:text-red-400 font-medium">Sure?</span>
+              <button onClick={clearAll} className="text-[11px] font-bold text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300">Yes</button>
+              <span className="text-red-300 dark:text-red-700">·</span>
+              <button onClick={() => setConfirmClear(false)} className="text-[11px] font-medium text-slate-500 dark:text-slate-400">No</button>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Recipe list */}
-      {recipes.map(recipe => {
+      {sorted.map(recipe => {
         const isExpanded = expanded === recipe.id
-        const isDeleting = deleting === recipe.id
         const isHome     = recipe.type === 'home_cooked'
 
         return (
@@ -117,7 +197,6 @@ export default function SavedRecipes({ onDelete }) {
               {/* Info */}
               <div className="flex-1 min-w-0">
                 <p className="font-bold text-slate-900 dark:text-white text-xs sm:text-sm truncate">{recipe.name}</p>
-                {/* Macros — hide carbs/fat on smallest screens */}
                 <div className="flex flex-wrap items-center gap-x-2 sm:gap-x-3 gap-y-0.5 mt-0.5">
                   {recipe.protein && (
                     <span className="flex items-center gap-1 text-[10px] sm:text-xs text-slate-500 dark:text-slate-400">

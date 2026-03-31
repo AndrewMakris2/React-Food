@@ -5,8 +5,10 @@ const ThemeContext = createContext()
 export function ThemeProvider({ children }) {
   const [isDark, setIsDark] = useState(() => {
     const saved = localStorage.getItem('proteinfuel-theme')
-    if (saved) return saved === 'dark'
-    return window.matchMedia('(prefers-color-scheme: dark)').matches
+    const dark  = saved ? saved === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches
+    // Apply synchronously to prevent white flash on first render
+    document.documentElement.classList.toggle('dark', dark)
+    return dark
   })
 
   useEffect(() => {

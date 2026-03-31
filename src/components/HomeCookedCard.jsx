@@ -1,4 +1,5 @@
-import { ChefHat, Flame, Dumbbell, Bookmark, BookmarkCheck, Wheat, Droplets } from 'lucide-react'
+import { useState } from 'react'
+import { ChefHat, Flame, Dumbbell, Bookmark, BookmarkCheck, Wheat, Droplets, AlertTriangle, CheckSquare, Square } from 'lucide-react'
 
 function MacroChip({ icon: Icon, value, label }) {
   if (!value) return null
@@ -11,7 +12,38 @@ function MacroChip({ icon: Icon, value, label }) {
   )
 }
 
+// Returns true if macros look physically impossible
+function macrosAreSuspect(meal) {
+  const p = parseFloat(String(meal.protein).replace(/[^0-9.]/g, ''))
+  const c = parseFloat(String(meal.calories).replace(/[^0-9.]/g, ''))
+  if (!p || !c) return false
+  return c < p * 4 * 0.8   // 20% tolerance for rounding
+}
+
 export default function HomeCookedCard({ meal, onSave, saved }) {
+  const [checkedIngredients, setCheckedIngredients] = useState(new Set())
+  const [checkedSteps,       setCheckedSteps]       = useState(new Set())
+  const suspect = macrosAreSuspect(meal)
+
+  function toggleIngredient(i) {
+    setCheckedIngredients(prev => {
+      const next = new Set(prev)
+      next.has(i) ? next.delete(i) : next.add(i)
+      return next
+    })
+  }
+
+  function toggleStep(i) {
+    setCheckedSteps(prev => {
+      const next = new Set(prev)
+      next.has(i) ? next.delete(i) : next.add(i)
+      return next
+    })
+  }
+
+  const allIngredientsDone = meal.ingredients?.length > 0 && checkedIngredients.size === meal.ingredients.length
+  const allStepsDone       = meal.steps?.length > 0        && checkedSteps.size       === meal.steps.length
+
   return (
     <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-sm rounded-xl sm:rounded-2xl border border-slate-200/80 dark:border-slate-700/50 overflow-hidden shadow-sm animate-slide-up">
 
@@ -42,11 +74,26 @@ export default function HomeCookedCard({ meal, onSave, saved }) {
 
         {/* Macro chips */}
         <div className="mt-3 sm:mt-4 flex flex-wrap gap-1.5 sm:gap-2">
-          <MacroChip icon={Dumbbell} value={meal.protein} label="protein" />
+          <MacroChip icon={Dumbbell} value={meal.protein}  label="protein" />
           <MacroChip icon={Flame}    value={meal.calories} label="cal" />
           <MacroChip icon={Wheat}    value={meal.carbs}    label="carbs" />
           <MacroChip icon={Droplets} value={meal.fat}      label="fat" />
         </div>
+
+        {/* Macro sanity warning */}
+        {suspect && (
+          <div className="mt-3 flex items-center gap-1.5 bg-amber-500/20 rounded-lg px-3 py-1.5 text-xs font-medium text-amber-100">
+            <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0" />
+            Macros may be inaccurate — try regenerating this meal
+          </div>
+        )}
+
+        {/* Completion indicator */}
+        {allStepsDone && (
+          <div className="mt-3 flex items-center gap-1.5 bg-white/20 rounded-lg px-3 py-1.5 text-xs font-semibold">
+            ✅ All steps complete — enjoy your meal!
+          </div>
+        )}
       </div>
 
       {/* Body */}
@@ -55,16 +102,33 @@ export default function HomeCookedCard({ meal, onSave, saved }) {
         {/* Ingredients */}
         {meal.ingredients?.length > 0 && (
           <div>
-            <h3 className="text-[10px] sm:text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-3 sm:mb-4">
-              Ingredients
-            </h3>
+            <div className="flex items-center justify-between mb-3 sm:mb-4">
+              <h3 className="text-[10px] sm:text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">
+                Ingredients
+              </h3>
+              {allIngredientsDone && (
+                <span className="text-[10px] text-emerald-500 font-semibold">All gathered!</span>
+              )}
+            </div>
             <ul className="space-y-2 sm:space-y-2.5">
-              {meal.ingredients.map((ing, i) => (
-                <li key={i} className="flex items-start gap-2 sm:gap-2.5 text-xs sm:text-sm text-slate-700 dark:text-slate-300">
-                  <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-emerald-500 flex-shrink-0" />
-                  {ing}
-                </li>
-              ))}
+              {meal.ingredients.map((ing, i) => {
+                const done = checkedIngredients.has(i)
+                return (
+                  <li
+                    key={i}
+                    onClick={() => toggleIngredient(i)}
+                    className={`flex items-start gap-2 sm:gap-2.5 text-xs sm:text-sm cursor-pointer select-none transition-colors ${
+                      done ? 'text-slate-400 dark:text-slate-600 line-through' : 'text-slate-700 dark:text-slate-300'
+                    }`}
+                  >
+                    {done
+                      ? <CheckSquare className="w-4 h-4 text-emerald-500 flex-shrink-0 mt-0.5" />
+                      : <Square      className="w-4 h-4 text-slate-300 dark:text-slate-600 flex-shrink-0 mt-0.5" />
+                    }
+                    {ing}
+                  </li>
+                )
+              })}
             </ul>
           </div>
         )}
@@ -76,14 +140,29 @@ export default function HomeCookedCard({ meal, onSave, saved }) {
               Instructions
             </h3>
             <ol className="space-y-3 sm:space-y-4">
-              {meal.steps.map((step, i) => (
-                <li key={i} className="flex gap-2.5 sm:gap-3">
-                  <span className="flex-shrink-0 w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400 text-[10px] sm:text-xs font-bold flex items-center justify-center mt-0.5">
-                    {i + 1}
-                  </span>
-                  <p className="text-xs sm:text-sm text-slate-700 dark:text-slate-300 leading-relaxed">{step}</p>
-                </li>
-              ))}
+              {meal.steps.map((step, i) => {
+                const done = checkedSteps.has(i)
+                return (
+                  <li
+                    key={i}
+                    onClick={() => toggleStep(i)}
+                    className="flex gap-2.5 sm:gap-3 cursor-pointer select-none group"
+                  >
+                    <span className={`flex-shrink-0 w-5 h-5 sm:w-6 sm:h-6 rounded-full text-[10px] sm:text-xs font-bold flex items-center justify-center mt-0.5 transition-colors ${
+                      done
+                        ? 'bg-emerald-500 text-white'
+                        : 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400 group-hover:bg-emerald-200 dark:group-hover:bg-emerald-900/60'
+                    }`}>
+                      {done ? '✓' : i + 1}
+                    </span>
+                    <p className={`text-xs sm:text-sm leading-relaxed transition-colors mt-0.5 ${
+                      done ? 'text-slate-400 dark:text-slate-600 line-through' : 'text-slate-700 dark:text-slate-300'
+                    }`}>
+                      {step}
+                    </p>
+                  </li>
+                )
+              })}
             </ol>
           </div>
         )}
