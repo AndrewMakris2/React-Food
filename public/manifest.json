@@ -1,0 +1,19 @@
+{
+  "name": "ProteinFuel — AI Meal Planner",
+  "short_name": "ProteinFuel",
+  "description": "AI-powered high-protein meal planner. Generate home cooked meals and fast food options tailored to your macro goals.",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#020617",
+  "theme_color": "#6366f1",
+  "categories": ["food", "health", "fitness"],
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

@@ -64,7 +64,7 @@ app.post('/api/generate', async (req, res) => {
     spiceLevel    ? `- Spice level: ${sanitize(spiceLevel)}`                                 : null,
     `- Servings: ${sanitize(String(servings))}`,
     restrictions  ? `- Dietary restrictions: ${sanitize(restrictions, 200)}`                 : null,
-    location      ? `- User is near ${sanitize(location)} — recommend chains available there` : null,
+    location      ? `- User's location: ${sanitize(location)}` : null,
   ].filter(Boolean).join('\n')
 
   const homeSchema = `{
@@ -118,20 +118,30 @@ The restaurants array must contain exactly ${resultCount} item(s).`
     schema = `HOME COOKED:\n${homeSchema}\n\nFAST FOOD:\n${fastSchema}`
   }
 
+  const locationRule = location
+    ? `LOCATION RULES (user is in: ${sanitize(location)}):
+- ONLY recommend chains you are highly confident operate in this specific city/state
+- Safe national chains available almost everywhere in the US: McDonald's, Subway, Chipotle, Chick-fil-A, Taco Bell, Wendy's, Burger King, Panda Express, Panera Bread, Five Guys, Jersey Mike's, Wingstop, Raising Cane's
+- Regional chains: Zaxby's and Bojangles' are Southeast US only (NOT Arizona, NOT West Coast). Whataburger is Texas/South-central. In-N-Out is California/Nevada/Arizona/Utah. Culver's is Midwest/Southeast.
+- If you are not certain a chain exists in ${sanitize(location)}, do NOT include it — pick a safe national chain instead
+- Prioritize variety: don't suggest the same chain twice`
+    : ''
+
   const systemPrompt = `You are a precision sports nutritionist and registered dietitian.
 
-MACRO ACCURACY — home cooked meals:
-- Calories = (protein_g × 4) + (carbs_g × 4) + (fat_g × 9) — must add up correctly
-- Base all numbers on the actual ingredient amounts you list
-- A 50g protein meal has at minimum 200 kcal from protein — total can never be lower
+MACRO ACCURACY:
+- Calories = (protein_g × 4) + (carbs_g × 4) + (fat_g × 9) — numbers must add up
+- A meal with 50g protein has at minimum 200 kcal from protein alone — total can never be lower
+- Base macros on actual ingredient amounts listed — verify before writing
 
-FAST FOOD ACCURACY:
-- Only recommend real chains with real existing menu items
-- Macro values are estimates — prefix all fast food macros with ~ (e.g. "~48g", "~740")
-- Use realistic ballpark figures based on typical items of that type; do not fabricate exact lab values
-- Sour cream does NOT meaningfully add protein — be accurate about what actually adds protein
+FAST FOOD CHAIN RULES:
+- Only use real chains with real existing menu items
+- Never recommend a chain you are not confident exists in the user's area
+- Macro values for fast food are estimates — prefix with ~ (e.g. "~48g", "~740")
+${locationRule}
 
-OUTPUT: Return ONLY a valid JSON object. No markdown. No code fences. No extra text.`
+OUTPUT: Return ONLY valid JSON — no markdown, no code fences, no explanation.
+Every item in the result array must be distinct.`
 
   const userPrompt = `${typeDirective}
 

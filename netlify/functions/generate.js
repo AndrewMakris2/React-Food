@@ -60,7 +60,7 @@ export const handler = async (event) => {
     spiceLevel    ? `- Spice level: ${sanitize(spiceLevel)}`                      : null,
     `- Servings: ${sanitize(String(servings))}`,
     restrictions  ? `- Dietary restrictions: ${sanitize(restrictions, 200)}`      : null,
-    location      ? `- User is near ${sanitize(location)} — recommend chains/restaurants available in this area` : null,
+    location      ? `- User's location: ${sanitize(location)}` : null,
   ].filter(Boolean).join('\n')
 
   // Type-specific schema — only show the relevant one to prevent model confusion
@@ -115,18 +115,30 @@ The restaurants array must contain exactly ${resultCount} item(s).`
     schema = `HOME COOKED schema:\n${homeSchema}\n\nFAST FOOD schema:\n${fastSchema}`
   }
 
+  const locationRule = location
+    ? `LOCATION RULES (user is in: ${sanitize(location)}):
+- ONLY recommend chains you are highly confident operate in this specific city/state
+- Safe national chains available almost everywhere in the US: McDonald's, Subway, Chipotle, Chick-fil-A, Taco Bell, Wendy's, Burger King, Panda Express, Panera Bread, Five Guys, Jersey Mike's, Wingstop, Raising Cane's, In-N-Out (West Coast only), Shake Shack (urban areas)
+- Regional chains: Zaxby's and Bojangles' are Southeast US only (NOT Arizona, NOT West Coast). Whataburger is Texas/South-central. In-N-Out is California/Nevada/Arizona/Utah. Culver's is Midwest/Southeast.
+- If you are not certain a chain exists in ${sanitize(location)}, do NOT include it — pick a safe national chain instead
+- Prioritize variety: don't suggest the same chain twice`
+    : ''
+
   const systemPrompt = `You are a precision sports nutritionist and registered dietitian specializing in high-protein meal planning.
 
-MACRO ACCURACY RULES — you must follow these exactly:
-- Calories are calculated as: (protein_g × 4) + (carbs_g × 4) + (fat_g × 9)
-- A meal with 50g protein contributes at least 200 kcal from protein alone — total calories cannot be lower
-- Base all macro numbers on the actual ingredient amounts you list — verify before writing
-- Never round protein up dramatically while keeping calories impossibly low
-- For fast food: use real published nutrition data for these actual menu items
+MACRO ACCURACY RULES:
+- Calories = (protein_g × 4) + (carbs_g × 4) + (fat_g × 9) — numbers must add up
+- A meal with 50g protein has at minimum 200 kcal from protein alone — total can never be lower
+- Base macros on actual ingredient amounts listed — verify before writing
 
-OUTPUT RULES:
-- Return ONLY a valid JSON object — no markdown, no code fences, no explanation
-- Every meal/restaurant in the array must be distinct`
+FAST FOOD CHAIN RULES:
+- Only use real chains with real existing menu items
+- Never recommend a chain you are not confident exists in the user's area
+- Macro values for fast food are estimates — prefix with ~ (e.g. "~48g", "~740")
+${locationRule}
+
+OUTPUT: Return ONLY valid JSON — no markdown, no code fences, no explanation.
+Every item in the result array must be distinct.`
 
   const userPrompt = `${typeDirective}
 
